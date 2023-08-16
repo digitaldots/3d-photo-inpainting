@@ -9,19 +9,19 @@ from tqdm import tqdm
 import yaml
 import time
 import sys
-from mesh import write_ply, read_ply, output_3d_photo
-from utils import get_MiDaS_samples, read_MiDaS_depth
+from photo_inpainting.mesh import write_ply, read_ply, output_3d_photo
+from photo_inpainting.utils import get_MiDaS_samples, read_MiDaS_depth
 import torch
 import cv2
 from skimage.transform import resize
 import imageio
 import copy
-from networks import Inpaint_Color_Net, Inpaint_Depth_Net, Inpaint_Edge_Net
-from MiDaS.run import run_depth
-from boostmonodepth_utils import run_boostmonodepth
-from MiDaS.monodepth_net import MonoDepthNet
-import MiDaS.MiDaS_utils as MiDaS_utils
-from bilateral_filtering import sparse_bilateral_filtering
+from photo_inpainting.networks import Inpaint_Color_Net, Inpaint_Depth_Net, Inpaint_Edge_Net
+from photo_inpainting.MiDaS.run import run_depth
+from photo_inpainting.boostmonodepth_utils import run_boostmonodepth
+from photo_inpainting.MiDaS.monodepth_net import MonoDepthNet
+import photo_inpainting.MiDaS.MiDaS_utils as MiDaS_utils
+from photo_inpainting.bilateral_filtering import sparse_bilateral_filtering
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='argument.yml', help='Configure of post processing')

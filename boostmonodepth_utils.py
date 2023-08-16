@@ -3,12 +3,13 @@ import cv2
 import glob
 import numpy as np
 import imageio
-from MiDaS.MiDaS_utils import write_depth
+from photo_inpainting.MiDaS.MiDaS_utils import write_depth
 
 BOOST_BASE = 'BoostingMonocularDepth'
 
 BOOST_INPUTS = 'inputs'
 BOOST_OUTPUTS = 'outputs'
+
 
 def run_boostmonodepth(img_names, src_folder, depth_folder):
 
@@ -44,6 +45,7 @@ def run_boostmonodepth(img_names, src_folder, depth_folder):
         np.save(os.path.join(depth_folder, tgt_name.replace('.png', '.npy')), depth / 32768. - 1.)
         write_depth(os.path.join(depth_folder, tgt_name.replace('.png', '')), depth)
 
+
 def clean_folder(folder, img_exts=['.png', '.jpg', '.npy']):
 
     for img_ext in img_exts:
@@ -52,6 +54,7 @@ def clean_folder(folder, img_exts=['.png', '.jpg', '.npy']):
             continue
         print(paths_to_check)
         os.system(f'rm {paths_to_check}')
+
 
 def resize_depth(depth, width, height):
     """Resize numpy (or image read by imageio) depth map
