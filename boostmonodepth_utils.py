@@ -5,7 +5,7 @@ import numpy as np
 import imageio
 from photo_inpainting.MiDaS.MiDaS_utils import write_depth
 
-BOOST_BASE = 'BoostingMonocularDepth'
+BOOST_BASE = 'photo_inpainting/BoostingMonocularDepth'
 
 BOOST_INPUTS = 'inputs'
 BOOST_OUTPUTS = 'outputs'

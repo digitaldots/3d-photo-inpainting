@@ -24,14 +24,17 @@ import photo_inpainting.MiDaS.MiDaS_utils as MiDaS_utils
 from photo_inpainting.bilateral_filtering import sparse_bilateral_filtering
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='argument.yml', help='Configure of post processing')
+parser.add_argument('--config', type=str, default='photo_inpainting/argument.yml', help='Configure of post processing')
 args = parser.parse_args()
 config = yaml.full_load(open(args.config, 'r'))
 if config['offscreen_rendering'] is True:
     vispy.use(app='egl')
+
+os.makedirs(config['src_folder'], exist_ok=True)
 os.makedirs(config['mesh_folder'], exist_ok=True)
 os.makedirs(config['video_folder'], exist_ok=True)
 os.makedirs(config['depth_folder'], exist_ok=True)
+
 sample_list = get_MiDaS_samples(config['src_folder'], config['depth_folder'], config, config['specific'])
 normal_canvas, all_canvas = None, None
 
@@ -41,6 +44,8 @@ else:
     device = "cpu"
 
 print(f"running on device {device}")
+
+localPaths = []
 
 
 def generateVideo(normal_canvas=None, all_canvas=None):
@@ -134,7 +139,7 @@ def generateVideo(normal_canvas=None, all_canvas=None):
         left = (config.get('original_w') // 2 - sample['int_mtx'][0, 2] * config['output_w'])
         down, right = top + config['output_h'], left + config['output_w']
         border = [int(xx) for xx in [top, down, left, right]]
-        normal_canvas, all_canvas = output_3d_photo(
+        normal_canvas, all_canvas, localpath = output_3d_photo(
             verts.copy(),
             colors.copy(),
             faces.copy(),
@@ -151,3 +156,5 @@ def generateVideo(normal_canvas=None, all_canvas=None):
             config, image, videos_poses, video_basename, config.get('original_h'),
             config.get('original_w'),
             border=border, depth=depth, normal_canvas=normal_canvas, all_canvas=all_canvas, mean_loc_depth=mean_loc_depth)
+        localPaths.append(localpath)
+    return localPaths

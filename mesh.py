@@ -12,6 +12,7 @@ from skimage.transform import resize
 import time
 import copy
 import torch
+import uuid
 import os
 from photo_inpainting.utils import path_planning, open_small_mask, clean_far_edge, refine_depth_around_edge
 from photo_inpainting.utils import refine_color_around_edge, filter_irrelevant_edge_new, require_depth_edge, clean_far_edge_new
@@ -2367,6 +2368,8 @@ def output_3d_photo(verts, colors, faces, Height, Width, hFov, vFov, tgt_poses, 
         clip = ImageSequenceClip(stereos, fps=config['fps'])
         if isinstance(video_basename, list):
             video_basename = video_basename[0]
-        clip.write_videofile(os.path.join(output_dir, video_basename + '_' + video_traj_type + '.mp4'), fps=config['fps'])
+        id = uuid.uuid1()
+        localpath = os.path.join(output_dir, video_basename + '_' + video_traj_type + '_'+str(id)+'.mp4')
+        clip.write_videofile(localpath, fps=config['fps'])
 
-    return normal_canvas, all_canvas
+    return normal_canvas, all_canvas, localpath

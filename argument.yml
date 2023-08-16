@@ -1,7 +1,7 @@
-depth_edge_model_ckpt: checkpoints/edge-model.pth
-depth_feat_model_ckpt: checkpoints/depth-model.pth
-rgb_feat_model_ckpt: checkpoints/color-model.pth
-MiDaS_model_ckpt: MiDaS/model-f46da743.pt
+depth_edge_model_ckpt: photo_inpainting/checkpoints/edge-model.pth
+depth_feat_model_ckpt: photo_inpainting/checkpoints/depth-model.pth
+rgb_feat_model_ckpt: photo_inpainting/checkpoints/color-model.pth
+MiDaS_model_ckpt: photo_inpainting/MiDaS/model-f46da743.pt
 use_boostmonodepth: True
 fps: 24
 num_frames: 72
@@ -12,10 +12,10 @@ traj_types: [double-straight-line]
 video_postfix: [zoom-in]
 specific: ''
 longer_side_len: 960
-src_folder: image
-depth_folder: depth
-mesh_folder: mesh
-video_folder: video
+src_folder: photo_inpainting/image
+depth_folder: photo_inpainting/depth
+mesh_folder: photo_inpainting/mesh
+video_folder: photo_inpainting/video
 load_ply: False
 save_ply: False
 inference_video: True
