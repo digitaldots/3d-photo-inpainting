@@ -26,6 +26,7 @@ import time
 from scipy.interpolate import interp1d
 from collections import namedtuple
 
+
 def path_planning(num_frames, x, y, z, path_type=''):
     if path_type == 'straight-line':
         corner_points = np.array([[0, 0, 0], [(0 + x) * 0.5, (0 + y) * 0.5, (0 + z) * 0.5], [x, y, z]])
@@ -40,7 +41,7 @@ def path_planning(num_frames, x, y, z, path_type=''):
         t = np.linspace(0, 1, num_frames)
         cs = interp1d(corner_t, corner_points, axis=0, kind='quadratic')
         spline = cs(t)
-        xs, ys, zs = [xx.squeeze() for xx in np.split(spline, 3, 1)]        
+        xs, ys, zs = [xx.squeeze() for xx in np.split(spline, 3, 1)]
     elif path_type == 'circle':
         xs, ys, zs = [], [], []
         for frame_id, bs_shift_val in enumerate(np.arange(-2.0, 2.0, (4./num_frames))):
@@ -51,36 +52,39 @@ def path_planning(num_frames, x, y, z, path_type=''):
 
     return xs, ys, zs
 
+
 def open_small_mask(mask, context, open_iteration, kernel):
     np_mask = mask.cpu().data.numpy().squeeze().astype(np.uint8)
     raw_mask = np_mask.copy()
     np_context = context.cpu().data.numpy().squeeze().astype(np.uint8)
     np_input = np_mask + np_context
     for _ in range(open_iteration):
-        np_input = cv2.erode(cv2.dilate(np_input, np.ones((kernel, kernel)), iterations=1), np.ones((kernel,kernel)), iterations=1)
+        np_input = cv2.erode(cv2.dilate(np_input, np.ones((kernel, kernel)), iterations=1), np.ones((kernel, kernel)), iterations=1)
     np_mask[(np_input - np_context) > 0] = 1
     out_mask = torch.FloatTensor(np_mask).to(mask)[None, None, ...]
-    
+
     return out_mask
+
 
 def filter_irrelevant_edge_new(self_edge, comp_edge, other_edges, other_edges_with_id, current_edge_id, context, depth, mesh, context_cc, spdb=False):
     other_edges = other_edges.squeeze().astype(np.uint8)
     other_edges_with_id = other_edges_with_id.squeeze()
     self_edge = self_edge.squeeze()
-    dilate_bevel_self_edge = cv2.dilate((self_edge + comp_edge).astype(np.uint8), np.array([[1,1,1],[1,1,1],[1,1,1]]), iterations=1)
-    dilate_cross_self_edge = cv2.dilate((self_edge + comp_edge).astype(np.uint8), np.array([[0,1,0],[1,1,1],[0,1,0]]).astype(np.uint8), iterations=1)
+    dilate_bevel_self_edge = cv2.dilate((self_edge + comp_edge).astype(np.uint8), np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]), iterations=1)
+    dilate_cross_self_edge = cv2.dilate((self_edge + comp_edge).astype(np.uint8), np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]]).astype(np.uint8), iterations=1)
     edge_ids = np.unique(other_edges_with_id * context + (-1) * (1 - context)).astype(np.int)
     end_depth_maps = np.zeros_like(self_edge)
     self_edge_ids = np.sort(np.unique(other_edges_with_id[self_edge > 0]).astype(np.int))
-    self_edge_ids = self_edge_ids[1:] if self_edge_ids.shape[0] > 0  and self_edge_ids[0] == -1 else self_edge_ids
+    self_edge_ids = self_edge_ids[1:] if self_edge_ids.shape[0] > 0 and self_edge_ids[0] == -1 else self_edge_ids
     self_comp_ids = np.sort(np.unique(other_edges_with_id[comp_edge > 0]).astype(np.int))
-    self_comp_ids = self_comp_ids[1:] if self_comp_ids.shape[0] > 0  and self_comp_ids[0] == -1 else self_comp_ids
+    self_comp_ids = self_comp_ids[1:] if self_comp_ids.shape[0] > 0 and self_comp_ids[0] == -1 else self_comp_ids
     edge_ids = edge_ids[1:] if edge_ids[0] == -1 else edge_ids
     other_edges_info = []
     extend_other_edges = np.zeros_like(other_edges)
     if spdb is True:
-        f, ((ax1, ax2, ax3)) = plt.subplots(1, 3, sharex=True, sharey=True); ax1.imshow(self_edge); ax2.imshow(context); ax3.imshow(other_edges_with_id * context + (-1) * (1 - context)); plt.show()
-        import pdb; pdb.set_trace()
+        # f, ((ax1, ax2, ax3)) = plt.subplots(1, 3, sharex=True, sharey=True); ax1.imshow(self_edge); ax2.imshow(context); ax3.imshow(other_edges_with_id * context + (-1) * (1 - context)); plt.show()
+        import pdb
+        pdb.set_trace()
     filter_self_edge = np.zeros_like(self_edge)
     for self_edge_id in self_edge_ids:
         filter_self_edge[other_edges_with_id == self_edge_id] = 1
@@ -111,6 +115,7 @@ def filter_irrelevant_edge_new(self_edge, comp_edge, other_edges, other_edges_wi
 
     return other_edges, end_depth_maps, other_edges_info
 
+
 def clean_far_edge_new(input_edge, end_depth_maps, mask, context, global_mesh, info_on_pix, self_edge, inpaint_id, config):
     mesh = netx.Graph()
     hxs, hys = np.where(input_edge * mask > 0)
@@ -118,21 +123,22 @@ def clean_far_edge_new(input_edge, end_depth_maps, mask, context, global_mesh, i
     valid_map = mask + context
     invalid_edge_ids = []
     for hx, hy in zip(hxs, hys):
-        node = (hx ,hy)
+        node = (hx, hy)
         mesh.add_node((hx, hy))
-        eight_nes = [ne for ne in [(hx + 1, hy), (hx - 1, hy), (hx, hy + 1), (hx, hy - 1), \
-                                   (hx + 1, hy + 1), (hx - 1, hy - 1), (hx - 1, hy + 1), (hx + 1, hy - 1)]\
-                        if 0 <= ne[0] < input_edge.shape[0] and 0 <= ne[1] < input_edge.shape[1] and 0 < input_edge[ne[0], ne[1]]] # or end_depth_maps[ne[0], ne[1]] != 0]
+        eight_nes = [ne for ne in [(hx + 1, hy), (hx - 1, hy), (hx, hy + 1), (hx, hy - 1),
+                                   (hx + 1, hy + 1), (hx - 1, hy - 1), (hx - 1, hy + 1), (hx + 1, hy - 1)]
+                     if 0 <= ne[0] < input_edge.shape[0] and 0 <= ne[1] < input_edge.shape[1] and 0 < input_edge[ne[0], ne[1]]]  # or end_depth_maps[ne[0], ne[1]] != 0]
         for ne in eight_nes:
             mesh.add_edge(node, ne, length=np.hypot(ne[0] - hx, ne[1] - hy))
             if end_depth_maps[ne[0], ne[1]] != 0:
                 mesh.nodes[ne[0], ne[1]]['cnt'] = True
                 if end_depth_maps[ne[0], ne[1]] == 0:
-                    import pdb; pdb.set_trace()
+                    import pdb
+                    pdb.set_trace()
                 mesh.nodes[ne[0], ne[1]]['depth'] = end_depth_maps[ne[0], ne[1]]
             elif mask[ne[0], ne[1]] != 1:
-                four_nes = [nne for nne in [(ne[0] + 1, ne[1]), (ne[0] - 1, ne[1]), (ne[0], ne[1] + 1), (ne[0], ne[1] - 1)]\
-                                 if nne[0] < end_depth_maps.shape[0] and nne[0] >= 0 and nne[1] < end_depth_maps.shape[1] and nne[1] >= 0]
+                four_nes = [nne for nne in [(ne[0] + 1, ne[1]), (ne[0] - 1, ne[1]), (ne[0], ne[1] + 1), (ne[0], ne[1] - 1)]
+                            if nne[0] < end_depth_maps.shape[0] and nne[0] >= 0 and nne[1] < end_depth_maps.shape[1] and nne[1] >= 0]
                 for nne in four_nes:
                     if end_depth_maps[nne[0], nne[1]] != 0:
                         mesh.add_edge(nne, ne, length=np.hypot(nne[0] - ne[0], nne[1] - ne[1]))
@@ -144,7 +150,7 @@ def clean_far_edge_new(input_edge, end_depth_maps, mask, context, global_mesh, i
         end_pts.append(set())
         for node in cc:
             if mesh.nodes[node].get('cnt') is not None:
-                end_pts[-1].add((node[0], node[1], mesh.nodes[node]['depth']))    
+                end_pts[-1].add((node[0], node[1], mesh.nodes[node]['depth']))
     predef_npaths = [None for _ in range(len(ccs))]
     fpath_map = np.zeros_like(input_edge) - 1
     npath_map = np.zeros_like(input_edge) - 1
@@ -165,8 +171,12 @@ def clean_far_edge_new(input_edge, end_depth_maps, mask, context, global_mesh, i
             ravel_end = [*end_pt]
             tmp_sub_mesh = mesh.subgraph(list(cc)).copy()
             tmp_npath = [*netx.shortest_path(tmp_sub_mesh, (ravel_end[0][0], ravel_end[0][1]), (ravel_end[1][0], ravel_end[1][1]), weight='length')]
-            fpath_map1, npath_map1, disp_diff1 = plan_path(mesh, info_on_pix, cc, ravel_end[0:1], global_mesh, input_edge, mask, valid_map, inpaint_id, npath_map=None, fpath_map=None, npath=tmp_npath)
-            fpath_map2, npath_map2, disp_diff2 = plan_path(mesh, info_on_pix, cc, ravel_end[1:2], global_mesh, input_edge, mask, valid_map, inpaint_id, npath_map=None, fpath_map=None, npath=tmp_npath)
+            fpath_map1, npath_map1, disp_diff1 = plan_path(
+                mesh, info_on_pix, cc, ravel_end[0: 1],
+                global_mesh, input_edge, mask, valid_map, inpaint_id, npath_map=None, fpath_map=None, npath=tmp_npath)
+            fpath_map2, npath_map2, disp_diff2 = plan_path(
+                mesh, info_on_pix, cc, ravel_end[1: 2],
+                global_mesh, input_edge, mask, valid_map, inpaint_id, npath_map=None, fpath_map=None, npath=tmp_npath)
             tmp_disp_diff = [disp_diff1, disp_diff2]
             self_end = []
             edge_len = []
@@ -186,8 +196,8 @@ def clean_far_edge_new(input_edge, end_depth_maps, mask, context, global_mesh, i
             if np.count_nonzero(re_npath_map1 * re_npath_map2 * mask) / \
                 (np.count_nonzero((re_npath_map1 + re_npath_map2) * mask) + 1e-6) > 0.5\
                 and np.count_nonzero(re_fpath_map1 * re_fpath_map2 * mask) / \
-                     (np.count_nonzero((re_fpath_map1 + re_fpath_map2) * mask) + 1e-6) > 0.5\
-                and tmp_disp_diff[0] != -1 and tmp_disp_diff[1] != -1:
+                (np.count_nonzero((re_fpath_map1 + re_fpath_map2) * mask) + 1e-6) > 0.5\
+                    and tmp_disp_diff[0] != -1 and tmp_disp_diff[1] != -1:
                 my_fpath_map, my_npath_map, npath, fpath = \
                     plan_path_e2e(mesh, cc, sorted_end_pts, global_mesh, input_edge, mask, valid_map, inpaint_id, npath_map=None, fpath_map=None)
                 npath_map[my_npath_map != -1] = my_npath_map[my_npath_map != -1]
@@ -235,12 +245,14 @@ def clean_far_edge_new(input_edge, end_depth_maps, mask, context, global_mesh, i
             elif len(sorted_end_pt) == 1:
                 ends = [*sorted_end_pt]
             else:
-                import pdb; pdb.set_trace()
+                import pdb
+                pdb.set_trace()
             try:
                 edge_id = global_mesh.nodes[ends[0]]['edge_id']
             except:
-                import pdb; pdb.set_trace()
-            pnodes = sorted(pnodes, 
+                import pdb
+                pdb.set_trace()
+            pnodes = sorted(pnodes,
                             key=lambda x: np.hypot((x[0] - ends[0][0]), (x[1] - ends[0][1])),
                             reverse=True)[0]
             npath = [*netx.shortest_path(sub_mesh, (ends[0][0], ends[0][1]), pnodes, weight='length')]
@@ -258,7 +270,7 @@ def clean_far_edge_new(input_edge, end_depth_maps, mask, context, global_mesh, i
                     dmask = cv2.dilate(dmask, np.ones((3, 3)), iterations=1)
                     if did > 3:
                         break
-                    ffnode = [fnode for fnode in fnodes if (dmask[fnode[0], fnode[1]] > 0 and mask[fnode[0], fnode[1]] == 0 and\
+                    ffnode = [fnode for fnode in fnodes if (dmask[fnode[0], fnode[1]] > 0 and mask[fnode[0], fnode[1]] == 0 and
                                                             global_mesh.nodes[fnode].get('inpaint_id') != inpaint_id + 1)]
                     if len(ffnode) > 0:
                         fnode = ffnode[0]
@@ -302,9 +314,9 @@ def clean_far_edge_new(input_edge, end_depth_maps, mask, context, global_mesh, i
                         new_locs = sorted(new_locs, key=lambda xx: np.hypot((xx[0] - fpath[-1][0]), (xx[1] - fpath[-1][1])))
                     break_flag = False
                     for new_loc in new_locs:
-                        new_loc_nes = [xx for xx in [(new_loc[0] + 1, new_loc[1]), (new_loc[0] - 1, new_loc[1]), 
-                                                    (new_loc[0], new_loc[1] + 1), (new_loc[0], new_loc[1] - 1)]\
-                                            if xx[0] >= 0 and xx[0] < fpath_map.shape[0] and xx[1] >= 0 and xx[1] < fpath_map.shape[1]]
+                        new_loc_nes = [xx for xx in [(new_loc[0] + 1, new_loc[1]), (new_loc[0] - 1, new_loc[1]),
+                                                     (new_loc[0], new_loc[1] + 1), (new_loc[0], new_loc[1] - 1)]
+                                       if xx[0] >= 0 and xx[0] < fpath_map.shape[0] and xx[1] >= 0 and xx[1] < fpath_map.shape[1]]
                         if np.all([(fpath_map[nlne[0], nlne[1]] == -1) for nlne in new_loc_nes]) != True:
                             break
                         if npath_map[new_loc[0], new_loc[1]] != -1:
@@ -338,6 +350,7 @@ def clean_far_edge_new(input_edge, end_depth_maps, mask, context, global_mesh, i
 
     return fpath_map, npath_map, False, npaths, fpaths, invalid_edge_ids
 
+
 def plan_path_e2e(mesh, cc, end_pts, global_mesh, input_edge, mask, valid_map, inpaint_id, npath_map=None, fpath_map=None):
     my_npath_map = np.zeros_like(input_edge) - 1
     my_fpath_map = np.zeros_like(input_edge) - 1
@@ -355,8 +368,8 @@ def plan_path_e2e(mesh, cc, end_pts, global_mesh, input_edge, mask, valid_map, i
         dmask = mask + 0
         while True:
             dmask = cv2.dilate(dmask, np.ones((3, 3)), iterations=1)
-            ffnode = [fnode for fnode in fnodes if (dmask[fnode[0], fnode[1]] > 0 and mask[fnode[0], fnode[1]] == 0 and\
-                                                            global_mesh.nodes[fnode].get('inpaint_id') != inpaint_id + 1)]
+            ffnode = [fnode for fnode in fnodes if (dmask[fnode[0], fnode[1]] > 0 and mask[fnode[0], fnode[1]] == 0 and
+                                                    global_mesh.nodes[fnode].get('inpaint_id') != inpaint_id + 1)]
             if len(ffnode) > 0:
                 fnode = ffnode[0]
                 break
@@ -364,11 +377,11 @@ def plan_path_e2e(mesh, cc, end_pts, global_mesh, input_edge, mask, valid_map, i
         dmask = mask + 0
         while True:
             dmask = cv2.dilate(dmask, np.ones((3, 3)), iterations=1)
-            e_ffnode = [e_fnode for e_fnode in e_fnodes if (dmask[e_fnode[0], e_fnode[1]] > 0 and mask[e_fnode[0], e_fnode[1]] == 0 and\
+            e_ffnode = [e_fnode for e_fnode in e_fnodes if (dmask[e_fnode[0], e_fnode[1]] > 0 and mask[e_fnode[0], e_fnode[1]] == 0 and
                                                             global_mesh.nodes[e_fnode].get('inpaint_id') != inpaint_id + 1)]
             if len(e_ffnode) > 0:
                 e_fnode = e_ffnode[0]
-                break            
+                break
         fpath.append((fnode[0], fnode[1]))
         if len(e_ffnode) == 0 or len(ffnode) == 0:
             return my_npath_map, my_fpath_map, [], []
@@ -409,8 +422,8 @@ def plan_path_e2e(mesh, cc, end_pts, global_mesh, input_edge, mask, valid_map, i
             break_flag = False
             for new_loc in new_locs:
                 new_loc_nes = [xx for xx in [(new_loc[0] + 1, new_loc[1]), (new_loc[0] - 1, new_loc[1]),
-                                            (new_loc[0], new_loc[1] + 1), (new_loc[0], new_loc[1] - 1)]\
-                                    if xx[0] >= 0 and xx[0] < my_fpath_map.shape[0] and xx[1] >= 0 and xx[1] < my_fpath_map.shape[1]]
+                                             (new_loc[0], new_loc[1] + 1), (new_loc[0], new_loc[1] - 1)]
+                               if xx[0] >= 0 and xx[0] < my_fpath_map.shape[0] and xx[1] >= 0 and xx[1] < my_fpath_map.shape[1]]
                 if fpath_map is not None and np.sum([fpath_map[nlne[0], nlne[1]] for nlne in new_loc_nes]) != 0:
                     break_flag = True
                     break
@@ -432,8 +445,9 @@ def plan_path_e2e(mesh, cc, end_pts, global_mesh, input_edge, mask, valid_map, i
         if len(fpath) > 0:
             for fp_node in fpath:
                 my_fpath_map[fp_node[0], fp_node[1]] = edge_id
-    
+
     return my_fpath_map, my_npath_map, npath, fpath
+
 
 def plan_path(mesh, info_on_pix, cc, end_pt, global_mesh, input_edge, mask, valid_map, inpaint_id, npath_map=None, fpath_map=None, npath=None):
     my_npath_map = np.zeros_like(input_edge) - 1
@@ -442,7 +456,7 @@ def plan_path(mesh, info_on_pix, cc, end_pt, global_mesh, input_edge, mask, vali
     pnodes = netx.periphery(sub_mesh)
     ends = [*end_pt]
     edge_id = global_mesh.nodes[ends[0]]['edge_id']
-    pnodes = sorted(pnodes, 
+    pnodes = sorted(pnodes,
                     key=lambda x: np.hypot((x[0] - ends[0][0]), (x[1] - ends[0][1])),
                     reverse=True)[0]
     if npath is None:
@@ -453,7 +467,8 @@ def plan_path(mesh, info_on_pix, cc, end_pt, global_mesh, input_edge, mask, vali
         elif (ends[0][0], ends[0][1]) == npath[-1]:
             npath = npath[::-1]
         else:
-            import pdb; pdb.set_trace()
+            import pdb
+            pdb.set_trace()
     for np_node in npath:
         my_npath_map[np_node[0], np_node[1]] = edge_id
     fpath = []
@@ -468,12 +483,12 @@ def plan_path(mesh, info_on_pix, cc, end_pt, global_mesh, input_edge, mask, vali
             if did > 3:
                 return my_fpath_map, my_npath_map, -1
             dmask = cv2.dilate(dmask, np.ones((3, 3)), iterations=1)
-            ffnode = [fnode for fnode in fnodes if (dmask[fnode[0], fnode[1]] > 0 and mask[fnode[0], fnode[1]] == 0 and\
-                                                            global_mesh.nodes[fnode].get('inpaint_id') != inpaint_id + 1)]
+            ffnode = [fnode for fnode in fnodes if (dmask[fnode[0], fnode[1]] > 0 and mask[fnode[0], fnode[1]] == 0 and
+                                                    global_mesh.nodes[fnode].get('inpaint_id') != inpaint_id + 1)]
             if len(ffnode) > 0:
                 fnode = ffnode[0]
                 break
-        
+
         fpath.append((fnode[0], fnode[1]))
         disp_diff = 0.
         for n_loc in npath:
@@ -517,14 +532,14 @@ def plan_path(mesh, info_on_pix, cc, end_pt, global_mesh, input_edge, mask, vali
             break_flag = False
             for new_loc in new_locs:
                 new_loc_nes = [xx for xx in [(new_loc[0] + 1, new_loc[1]), (new_loc[0] - 1, new_loc[1]),
-                                        (new_loc[0], new_loc[1] + 1), (new_loc[0], new_loc[1] - 1)]\
-                                if xx[0] >= 0 and xx[0] < my_fpath_map.shape[0] and xx[1] >= 0 and xx[1] < my_fpath_map.shape[1]]
+                                             (new_loc[0], new_loc[1] + 1), (new_loc[0], new_loc[1] - 1)]
+                               if xx[0] >= 0 and xx[0] < my_fpath_map.shape[0] and xx[1] >= 0 and xx[1] < my_fpath_map.shape[1]]
                 if fpath_map is not None and np.all([(fpath_map[nlne[0], nlne[1]] == -1) for nlne in new_loc_nes]) != True:
                     break_flag = True
                     break
                 if np.all([(my_fpath_map[nlne[0], nlne[1]] == -1) for nlne in new_loc_nes]) != True:
                     break_flag = True
-                    break 
+                    break
                 if my_npath_map[new_loc[0], new_loc[1]] != -1:
                     continue
                 if npath_map is not None and npath_map[new_loc[0], new_loc[1]] != edge_id:
@@ -546,6 +561,7 @@ def plan_path(mesh, info_on_pix, cc, end_pt, global_mesh, input_edge, mask, vali
                 my_fpath_map[fp_node[0], fp_node[1]] = edge_id
 
     return my_fpath_map, my_npath_map, disp_diff
+
 
 def refresh_node(old_node, old_feat, new_node, new_feat, mesh, stime=False):
     mesh.add_node(new_node)
@@ -569,7 +585,7 @@ def refresh_node(old_node, old_feat, new_node, new_feat, mesh, stime=False):
         for near_node in tmp_near_nodes:
             if mesh.has_node(near_node) is False:
                 mesh.nodes[new_node]['near'].remove(near_node)
-                continue        
+                continue
             if mesh.nodes[near_node].get('far') is not None:
                 for idx in range(len(mesh.nodes[near_node].get('far'))):
                     if mesh.nodes[near_node]['far'][idx][0] == new_node[0] and mesh.nodes[near_node]['far'][idx][1] == new_node[1]:
@@ -595,21 +611,23 @@ def create_placeholder(context, mask, depth, fpath_map, npath_map, mesh, inpaint
     for hx, hy in zip(hxs, hys):
         mesh.add_node((hx, hy), inpaint_id=inpaint_id + 1, num_context=num_com)
     for hx, hy in zip(hxs, hys):
-        four_nes = [(x, y) for x, y in [(hx + 1, hy), (hx - 1, hy), (hx, hy + 1), (hx, hy - 1)] if\
-                        0 <= x < mesh.graph['H'] and 0 <= y < mesh.graph['W'] and valid_area[x, y] != 0]
+        four_nes = [(x, y) for x, y in [(hx + 1, hy), (hx - 1, hy), (hx, hy + 1), (hx, hy - 1)] if
+                    0 <= x < mesh.graph['H'] and 0 <= y < mesh.graph['W'] and valid_area[x, y] != 0]
         for ne in four_nes:
             if mask[ne[0], ne[1]] != 0:
                 if not mesh.has_edge((hx, hy), ne):
                     mesh.add_edge((hx, hy), ne)
             elif depth[ne[0], ne[1]] != 0:
                 if mesh.has_node((ne[0], ne[1], depth[ne[0], ne[1]])) and\
-                    not mesh.has_edge((hx, hy), (ne[0], ne[1], depth[ne[0], ne[1]])):
+                        not mesh.has_edge((hx, hy), (ne[0], ne[1], depth[ne[0], ne[1]])):
                     mesh.add_edge((hx, hy), (ne[0], ne[1], depth[ne[0], ne[1]]))
                 else:
                     print("Undefined context node.")
-                    import pdb; pdb.set_trace()
+                    import pdb
+                    pdb.set_trace()
     near_ids = np.unique(npath_map)
-    if near_ids[0] == -1: near_ids = near_ids[1:]
+    if near_ids[0] == -1:
+        near_ids = near_ids[1:]
     for near_id in near_ids:
         hxs, hys = np.where((fpath_map == near_id) & (mask > 0))
         if hxs.shape[0] > 0:
@@ -618,7 +636,7 @@ def create_placeholder(context, mask, depth, fpath_map, npath_map, mesh, inpaint
             break
         for hx, hy in zip(hxs, hys):
             mesh.nodes[(hx, hy)]['edge_id'] = int(round(mesh.graph['max_edge_id']))
-            four_nes = [(x, y) for x, y in [(hx + 1, hy), (hx - 1, hy), (hx, hy + 1), (hx, hy - 1)] if\
+            four_nes = [(x, y) for x, y in [(hx + 1, hy), (hx - 1, hy), (hx, hy + 1), (hx, hy - 1)] if
                         x < mesh.graph['H'] and x >= 0 and y < mesh.graph['W'] and y >= 0 and npath_map[x, y] == near_id]
             for xx in four_nes:
                 xx_n = copy.deepcopy(xx)
@@ -638,16 +656,16 @@ def create_placeholder(context, mask, depth, fpath_map, npath_map, mesh, inpaint
             if unknown_id != near_id and unknown_id != self_edge_id:
                 unknown_node = set([xx for xx in edge_ccs[unknown_id] if xx[0] == hx and xx[1] == hy])
                 connect_point_exception |= unknown_node
-        hxs, hys = np.where((npath_map == near_id) & (mask > 0))                
+        hxs, hys = np.where((npath_map == near_id) & (mask > 0))
         if hxs.shape[0] > 0:
             mesh.graph['max_edge_id'] = mesh.graph['max_edge_id'] + 1
         else:
             break
         for hx, hy in zip(hxs, hys):
             mesh.nodes[(hx, hy)]['edge_id'] = int(round(mesh.graph['max_edge_id']))
-            mesh.nodes[(hx, hy)]['connect_point_id'] = int(round(near_id)) 
+            mesh.nodes[(hx, hy)]['connect_point_id'] = int(round(near_id))
             mesh.nodes[(hx, hy)]['connect_point_exception'] = connect_point_exception
-            four_nes = [(x, y) for x, y in [(hx + 1, hy), (hx - 1, hy), (hx, hy + 1), (hx, hy - 1)] if\
+            four_nes = [(x, y) for x, y in [(hx + 1, hy), (hx - 1, hy), (hx, hy + 1), (hx, hy - 1)] if
                         x < mesh.graph['H'] and x >= 0 and y < mesh.graph['W'] and y >= 0 and fpath_map[x, y] == near_id]
             for xx in four_nes:
                 xx_n = copy.deepcopy(xx)
@@ -661,6 +679,7 @@ def create_placeholder(context, mask, depth, fpath_map, npath_map, mesh, inpaint
                 mesh.nodes[(hx, hy)]['far'].append(xx_n)
 
     return mesh, add_node_time, add_edge_time, add_far_near_time
+
 
 def clean_far_edge(mask_edge, mask_edge_with_id, context_edge, mask, info_on_pix, global_mesh, anchor):
     if isinstance(mask_edge, torch.Tensor):
@@ -732,7 +751,8 @@ def clean_far_edge(mask_edge, mask_edge_with_id, context_edge, mask, info_on_pix
             new_specific_edge_map = np.zeros_like(mask)
             for path_node in netx.shortest_path(edge_mesh, start_near_node, end_near_node):
                 new_specific_edge_map[path_node[0], path_node[1]] = 1
-            context_near_pxs, context_near_pys = np.where(context_edge[start_near_node[0]-1:start_near_node[0]+2, start_near_node[1]-1:start_near_node[1]+2] > 0)
+            context_near_pxs, context_near_pys = np.where(
+                context_edge[start_near_node[0]-1:start_near_node[0]+2, start_near_node[1]-1:start_near_node[1]+2] > 0)
             distance = np.abs((context_near_pxs - 1)) + np.abs((context_near_pys - 1))
             if (np.where(distance == distance.min())[0].shape[0]) > 1:
                 closest_pxs = context_near_pxs[np.where(distance == distance.min())[0]]
@@ -763,13 +783,13 @@ def clean_far_edge(mask_edge, mask_edge_with_id, context_edge, mask, info_on_pix
                 context_far_node = tuple(far_node_list[far_nodes_dist.argmin()])
                 corresponding_far_edge = np.zeros_like(mask_edge)
                 corresponding_far_edge[context_far_node[0], context_far_node[1]] = 1
-                surround_map = cv2.dilate(new_specific_edge_map.astype(np.uint8), 
-                                            np.array([[1,1,1],[1,1,1],[1,1,1]]).astype(np.uint8), 
-                                            iterations=1)
+                surround_map = cv2.dilate(new_specific_edge_map.astype(np.uint8),
+                                          np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]).astype(np.uint8),
+                                          iterations=1)
                 specific_edge_map_wo_end_pt = new_specific_edge_map.copy()
                 specific_edge_map_wo_end_pt[end_near_node[0], end_near_node[1]] = 0
-                surround_map_wo_end_pt = cv2.dilate(specific_edge_map_wo_end_pt.astype(np.uint8), 
-                                                    np.array([[1,1,1],[1,1,1],[1,1,1]]).astype(np.uint8), 
+                surround_map_wo_end_pt = cv2.dilate(specific_edge_map_wo_end_pt.astype(np.uint8),
+                                                    np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]).astype(np.uint8),
                                                     iterations=1)
                 surround_map_wo_end_pt[new_specific_edge_map > 0] = 0
                 surround_map_wo_end_pt[context_near_node[0], context_near_node[1]] = 0
@@ -780,11 +800,11 @@ def clean_far_edge(mask_edge, mask_edge_with_id, context_edge, mask, info_on_pix
                 if surround_map[context_far_node[0], context_far_node[1]] == 1:
                     start_far_node = context_far_node
                 else:
-                    four_nes = [(context_far_node[0] - 1, context_far_node[1]), 
-                            (context_far_node[0] + 1, context_far_node[1]), 
-                            (context_far_node[0], context_far_node[1] - 1), 
-                            (context_far_node[0], context_far_node[1] + 1)]
-                    candidate_bevel = []            
+                    four_nes = [(context_far_node[0] - 1, context_far_node[1]),
+                                (context_far_node[0] + 1, context_far_node[1]),
+                                (context_far_node[0], context_far_node[1] - 1),
+                                (context_far_node[0], context_far_node[1] + 1)]
+                    candidate_bevel = []
                     for ne in four_nes:
                         if surround_map[ne[0], ne[1]] == 1:
                             start_far_node = (ne[0], ne[1])
@@ -815,18 +835,18 @@ def clean_far_edge(mask_edge, mask_edge_with_id, context_edge, mask, info_on_pix
                             far_edge_with_id[specific_far_edge > 0] = edge_id
                             end_far_candidates = np.zeros_like(far_edge)
                             end_far_candidates[end_near_node[0], end_near_node[1]] = 1
-                            end_far_candidates = cv2.dilate(end_far_candidates.astype(np.uint8), 
-                                                            np.array([[0,1,0],[1,1,1],[0,1,0]]).astype(np.uint8), 
+                            end_far_candidates = cv2.dilate(end_far_candidates.astype(np.uint8),
+                                                            np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]]).astype(np.uint8),
                                                             iterations=1)
                             end_far_candidates[end_near_node[0], end_near_node[1]] = 0
-                            invalid_nodes = (((far_edge_cc != far_edge_id).astype(np.uint8) * \
-                                              (far_edge_cc != 0).astype(np.uint8)).astype(np.uint8) + \
-                                             (new_specific_edge_map).astype(np.uint8) + \
+                            invalid_nodes = (((far_edge_cc != far_edge_id).astype(np.uint8) *
+                                              (far_edge_cc != 0).astype(np.uint8)).astype(np.uint8) +
+                                             (new_specific_edge_map).astype(np.uint8) +
                                              (mask == 0).astype(np.uint8)).clip(0, 1)
                             end_far_candidates[invalid_nodes > 0] = 0
                             far_edge[end_far_candidates > 0] = 1
                             far_edge_with_id[end_far_candidates > 0] = edge_id
-                            
+
                     far_edge[context_far_node[0], context_far_node[1]] = 1
                     far_edge_with_id[context_far_node[0], context_far_node[1]] = edge_id
                 near_edge_with_id[(mask_edge_with_id == edge_id) > 0] = edge_id
@@ -835,13 +855,14 @@ def clean_far_edge(mask_edge, mask_edge_with_id, context_edge, mask, info_on_pix
 
     return far_edge, uncleaned_far_edge, far_edge_with_id, near_edge_with_id
 
+
 def get_MiDaS_samples(image_folder, depth_folder, config, specific=None, aft_certain=None):
     lines = [os.path.splitext(os.path.basename(xx))[0] for xx in glob.glob(os.path.join(image_folder, '*' + config['img_format']))]
     samples = []
     generic_pose = np.eye(4)
     assert len(config['traj_types']) == len(config['x_shift_range']) ==\
-           len(config['y_shift_range']) == len(config['z_shift_range']) == len(config['video_postfix']), \
-           "The number of elements in 'traj_types', 'x_shift_range', 'y_shift_range', 'z_shift_range' and \
+        len(config['y_shift_range']) == len(config['z_shift_range']) == len(config['video_postfix']), \
+        "The number of elements in 'traj_types', 'x_shift_range', 'y_shift_range', 'z_shift_range' and \
                'video_postfix' should be equal."
     tgt_pose = [[generic_pose * 1]]
     tgts_poses = []
@@ -852,9 +873,9 @@ def get_MiDaS_samples(image_folder, depth_folder, config, specific=None, aft_cer
         for xx, yy, zz in zip(sx, sy, sz):
             tgt_poses.append(generic_pose * 1.)
             tgt_poses[-1][:3, -1] = np.array([xx, yy, zz])
-        tgts_poses += [tgt_poses]    
+        tgts_poses += [tgt_poses]
     tgt_pose = generic_pose * 1
-    
+
     aft_flag = True
     if aft_certain is not None and len(aft_certain) > 0:
         aft_flag = False
@@ -868,7 +889,7 @@ def get_MiDaS_samples(image_folder, depth_folder, config, specific=None, aft_cer
             if aft_flag is False:
                 continue
         samples.append({})
-        sdict = samples[-1]            
+        sdict = samples[-1]
         sdict['depth_fi'] = os.path.join(depth_folder, seq_dir + config['depth_format'])
         sdict['ref_img_fi'] = os.path.join(image_folder, seq_dir + config['img_format'])
         H, W = imageio.imread(sdict['ref_img_fi']).shape[:2]
@@ -885,14 +906,16 @@ def get_MiDaS_samples(image_folder, depth_folder, config, specific=None, aft_cer
 
     return samples
 
+
 def get_valid_size(imap):
     x_max = np.where(imap.sum(1).squeeze() > 0)[0].max() + 1
     x_min = np.where(imap.sum(1).squeeze() > 0)[0].min()
     y_max = np.where(imap.sum(0).squeeze() > 0)[0].max() + 1
     y_min = np.where(imap.sum(0).squeeze() > 0)[0].min()
-    size_dict = {'x_max':x_max, 'y_max':y_max, 'x_min':x_min, 'y_min':y_min}
-    
+    size_dict = {'x_max': x_max, 'y_max': y_max, 'x_min': x_min, 'y_min': y_min}
+
     return size_dict
+
 
 def dilate_valid_size(isize_dict, imap, dilate=[0, 0]):
     osize_dict = copy.deepcopy(isize_dict)
@@ -903,12 +926,14 @@ def dilate_valid_size(isize_dict, imap, dilate=[0, 0]):
 
     return osize_dict
 
+
 def crop_maps_by_size(size, *imaps):
     omaps = []
     for imap in imaps:
         omaps.append(imap[size['x_min']:size['x_max'], size['y_min']:size['y_max']].copy())
-    
+
     return omaps
+
 
 def smooth_cntsyn_gap(init_depth_map, mask_region, context_region, init_mask_region=None):
     if init_mask_region is not None:
@@ -939,6 +964,7 @@ def smooth_cntsyn_gap(init_depth_map, mask_region, context_region, init_mask_reg
 
     return depth_map
 
+
 def read_MiDaS_depth(disp_fi, disp_rescale=10., h=None, w=None):
     if 'npy' in os.path.splitext(disp_fi)[-1]:
         disp = np.load(disp_fi)
@@ -953,6 +979,7 @@ def read_MiDaS_depth(disp_fi, disp_rescale=10., h=None, w=None):
 
     return depth
 
+
 def follow_image_aspect_ratio(depth, image):
     H, W = image.shape[:2]
     image_aspect_ratio = H / W
@@ -964,12 +991,13 @@ def follow_image_aspect_ratio(depth, image):
     else:
         resize_W = dW
         resize_H = dW * image_aspect_ratio
-    depth = resize(depth / depth.max(), 
-                    (int(resize_H), 
-                    int(resize_W)), 
-                    order=0) * depth.max()
-    
+    depth = resize(depth / depth.max(),
+                   (int(resize_H),
+                    int(resize_W)),
+                   order=0) * depth.max()
+
     return depth
+
 
 def depth_resize(depth, origin_size, image_size):
     if origin_size[0] is not 0:
@@ -984,13 +1012,14 @@ def depth_resize(depth, origin_size, image_size):
         depth = depth * max_depth
 
     return depth
-    
+
+
 def filter_irrelevant_edge(self_edge, other_edges, other_edges_with_id, current_edge_id, context, edge_ccs, mesh, anchor):
     other_edges = other_edges.squeeze()
     other_edges_with_id = other_edges_with_id.squeeze()
-    
+
     self_edge = self_edge.squeeze()
-    dilate_self_edge = cv2.dilate(self_edge.astype(np.uint8), np.array([[1,1,1],[1,1,1],[1,1,1]]).astype(np.uint8), iterations=1)
+    dilate_self_edge = cv2.dilate(self_edge.astype(np.uint8), np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]).astype(np.uint8), iterations=1)
     edge_ids = collections.Counter(other_edges_with_id.flatten()).keys()
     other_edges_info = []
     # import ipdb
@@ -1020,7 +1049,8 @@ def filter_irrelevant_edge(self_edge, other_edges, other_edges_with_id, current_
                         other_edges_info[-1]['end_point_map'][(end_group == end_id)] = 1
                         other_edges_info[-1]['forbidden_point_map'] = np.zeros_like(self_edge)
                         other_edges_info[-1]['forbidden_point_map'][(end_group != end_id) * (end_group != 0)] = 1
-                        other_edges_info[-1]['forbidden_point_map'] = cv2.dilate(other_edges_info[-1]['forbidden_point_map'], kernel=np.array([[1,1,1],[1,1,1],[1,1,1]]), iterations=2)
+                        other_edges_info[-1]['forbidden_point_map'] = cv2.dilate(other_edges_info[-1]['forbidden_point_map'],
+                                                                                 kernel=np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]), iterations=2)
                         for x in edge_ccs[edge_id]:
                             nx = x[0] - anchor[0]
                             ny = x[1] - anchor[1]
@@ -1038,7 +1068,7 @@ def filter_irrelevant_edge(self_edge, other_edges, other_edges_with_id, current_
                             except:
                                 pass
     try:
-        other_edges_info = sorted(other_edges_info, key=lambda x : x['diff'], reverse=True)
+        other_edges_info = sorted(other_edges_info, key=lambda x: x['diff'], reverse=True)
     except:
         import pdb
         pdb.set_trace()
@@ -1054,12 +1084,14 @@ def filter_irrelevant_edge(self_edge, other_edges, other_edges_with_id, current_
 
     return other_edges, other_edges_info
 
+
 def require_depth_edge(context_edge, mask):
-    dilate_mask = cv2.dilate(mask, np.array([[1,1,1],[1,1,1],[1,1,1]]).astype(np.uint8), iterations=1)
+    dilate_mask = cv2.dilate(mask, np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]).astype(np.uint8), iterations=1)
     if (dilate_mask * context_edge).max() == 0:
         return False
     else:
         return True
+
 
 def refine_color_around_edge(mesh, info_on_pix, edge_ccs, config, spdb=False):
     H, W = mesh.graph['H'], mesh.graph['W']
@@ -1072,7 +1104,7 @@ def refine_color_around_edge(mesh, info_on_pix, edge_ccs, config, spdb=False):
         tmp_far_nodes = set()
         far_nodes = set()
         near_nodes = set()
-        end_nodes = set()        
+        end_nodes = set()
         for i in range(5):
             if i == 0:
                 for edge_node in edge_cc:
@@ -1085,16 +1117,16 @@ def refine_color_around_edge(mesh, info_on_pix, edge_ccs, config, spdb=False):
                         tmp_far_nodes |= tmp_node
                 rmv_tmp_far_nodes = set()
                 for far_node in tmp_far_nodes:
-                    if not(mesh.has_node(far_node) and mesh.nodes[far_node].get('inpaint_id') == 1):
+                    if not (mesh.has_node(far_node) and mesh.nodes[far_node].get('inpaint_id') == 1):
                         rmv_tmp_far_nodes.add(far_node)
                 if len(tmp_far_nodes - rmv_tmp_far_nodes) == 0:
-                    break                        
+                    break
                 else:
                     for near_node in near_nodes:
                         near_maps[near_node[0], near_node[1]] = True
                         mesh.nodes[near_node]['refine_rgbd'] = True
                         mesh.nodes[near_node]['backup_depth'] = near_node[2] \
-                                    if mesh.nodes[near_node].get('real_depth') is None else mesh.nodes[near_node]['real_depth']
+                            if mesh.nodes[near_node].get('real_depth') is None else mesh.nodes[near_node]['real_depth']
                         mesh.nodes[near_node]['backup_color'] = mesh.nodes[near_node]['color']
                 for far_node in tmp_far_nodes:
                     if mesh.has_node(far_node) and mesh.nodes[far_node].get('inpaint_id') == 1:
@@ -1102,7 +1134,7 @@ def refine_color_around_edge(mesh, info_on_pix, edge_ccs, config, spdb=False):
                         far_maps[far_node[0], far_node[1]] = True
                         mesh.nodes[far_node]['refine_rgbd'] = True
                         mesh.nodes[far_node]['backup_depth'] = far_node[2] \
-                                    if mesh.nodes[far_node].get('real_depth') is None else mesh.nodes[far_node]['real_depth']
+                            if mesh.nodes[far_node].get('real_depth') is None else mesh.nodes[far_node]['real_depth']
                         mesh.nodes[far_node]['backup_color'] = mesh.nodes[far_node]['color']
                 tmp_far_nodes = far_nodes
                 tmp_near_nodes = near_nodes
@@ -1116,34 +1148,34 @@ def refine_color_around_edge(mesh, info_on_pix, edge_ccs, config, spdb=False):
             for node in tmp_near_nodes:
                 for ne_node in mesh.neighbors(node):
                     if far_maps[ne_node[0], ne_node[1]] == False and \
-                        near_maps[ne_node[0], ne_node[1]] == False:
+                            near_maps[ne_node[0], ne_node[1]] == False:
                         if mesh.nodes[ne_node].get('inpaint_id') == 1:
                             new_tmp_near_nodes.add(ne_node)
                             near_maps[ne_node[0], ne_node[1]] = True
                             mesh.nodes[ne_node]['refine_rgbd'] = True
                             mesh.nodes[ne_node]['backup_depth'] = ne_node[2] \
-                                    if mesh.nodes[ne_node].get('real_depth') is None else mesh.nodes[ne_node]['real_depth']
+                                if mesh.nodes[ne_node].get('real_depth') is None else mesh.nodes[ne_node]['real_depth']
                             mesh.nodes[ne_node]['backup_color'] = mesh.nodes[ne_node]['color']
                         else:
                             mesh.nodes[ne_node]['backup_depth'] = ne_node[2] \
-                                    if mesh.nodes[ne_node].get('real_depth') is None else mesh.nodes[ne_node]['real_depth']
+                                if mesh.nodes[ne_node].get('real_depth') is None else mesh.nodes[ne_node]['real_depth']
                             mesh.nodes[ne_node]['backup_color'] = mesh.nodes[ne_node]['color']
                             end_nodes.add(node)
             near_nodes.update(new_tmp_near_nodes)
             for node in tmp_far_nodes:
                 for ne_node in mesh.neighbors(node):
                     if far_maps[ne_node[0], ne_node[1]] == False and \
-                        near_maps[ne_node[0], ne_node[1]] == False:
+                            near_maps[ne_node[0], ne_node[1]] == False:
                         if mesh.nodes[ne_node].get('inpaint_id') == 1:
                             new_tmp_far_nodes.add(ne_node)
                             far_maps[ne_node[0], ne_node[1]] = True
                             mesh.nodes[ne_node]['refine_rgbd'] = True
                             mesh.nodes[ne_node]['backup_depth'] = ne_node[2] \
-                                    if mesh.nodes[ne_node].get('real_depth') is None else mesh.nodes[ne_node]['real_depth']
+                                if mesh.nodes[ne_node].get('real_depth') is None else mesh.nodes[ne_node]['real_depth']
                             mesh.nodes[ne_node]['backup_color'] = mesh.nodes[ne_node]['color']
                         else:
                             mesh.nodes[ne_node]['backup_depth'] = ne_node[2] \
-                                    if mesh.nodes[ne_node].get('real_depth') is None else mesh.nodes[ne_node]['real_depth']
+                                if mesh.nodes[ne_node].get('real_depth') is None else mesh.nodes[ne_node]['real_depth']
                             mesh.nodes[ne_node]['backup_color'] = mesh.nodes[ne_node]['color']
                             end_nodes.add(node)
             far_nodes.update(new_tmp_far_nodes)
@@ -1155,10 +1187,10 @@ def refine_color_around_edge(mesh, info_on_pix, edge_ccs, config, spdb=False):
                 if far_maps[ne_node[0], ne_node[1]] == False and near_maps[ne_node[0], ne_node[1]] == False:
                     end_nodes.add(node)
                     mesh.nodes[ne_node]['backup_depth'] = ne_node[2] \
-                            if mesh.nodes[ne_node].get('real_depth') is None else mesh.nodes[ne_node]['real_depth']
+                        if mesh.nodes[ne_node].get('real_depth') is None else mesh.nodes[ne_node]['real_depth']
                     mesh.nodes[ne_node]['backup_color'] = mesh.nodes[ne_node]['color']
         tmp_end_nodes = end_nodes
-        
+
         refine_nodes = near_nodes | far_nodes
         remain_refine_nodes = copy.deepcopy(refine_nodes)
         accum_idx = 0
@@ -1181,7 +1213,8 @@ def refine_color_around_edge(mesh, info_on_pix, edge_ccs, config, spdb=False):
                             re_color += mesh.nodes[ne_node]['backup_color'].astype(np.float32)
                             re_count += 1.
                         except:
-                            import pdb; pdb.set_trace()
+                            import pdb
+                            pdb.set_trace()
                 if re_count > 0:
                     re_depth = re_depth / re_count
                     re_color = re_color / re_count
@@ -1204,13 +1237,14 @@ def refine_color_around_edge(mesh, info_on_pix, edge_ccs, config, spdb=False):
                 aftd_canvas[node[0], node[1]] = abs(mesh.nodes[node]['backup_depth'])
                 bfrc_canvas[node[0], node[1]] = mesh.nodes[node]['color'].astype(np.uint8)
                 aftc_canvas[node[0], node[1]] = mesh.nodes[node]['backup_color'].astype(np.uint8)
-            f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharex=True, sharey=True); 
-            ax1.imshow(bfrd_canvas); 
-            ax2.imshow(aftd_canvas); 
-            ax3.imshow(bfrc_canvas); 
-            ax4.imshow(aftc_canvas); 
-            plt.show()
-            import pdb; pdb.set_trace()
+            # f, (ax1, ax2, ax3, ax4) = plt.subplots(1, 4, sharex=True, sharey=True)
+            # ax1.imshow(bfrd_canvas)
+            # ax2.imshow(aftd_canvas)
+            # ax3.imshow(bfrc_canvas)
+            # ax4.imshow(aftc_canvas)
+            # plt.show()
+            import pdb
+            pdb.set_trace()
         for node in refine_nodes:
             if mesh.nodes[node].get('refine_rgbd') is not None:
                 mesh.nodes[node].pop('refine_rgbd')
@@ -1220,6 +1254,7 @@ def refine_color_around_edge(mesh, info_on_pix, edge_ccs, config, spdb=False):
                         info['color'] = mesh.nodes[node]['backup_color']
 
     return mesh, info_on_pix
+
 
 def refine_depth_around_edge(mask_depth, far_edge, uncleaned_far_edge, near_edge, mask, all_depth, config):
     if isinstance(mask_depth, torch.Tensor):
@@ -1252,16 +1287,16 @@ def refine_depth_around_edge(mask_depth, far_edge, uncleaned_far_edge, near_edge
     far_edge = far_edge.squeeze()
     near_edge = near_edge.squeeze()
     mask_depth = mask_depth.squeeze()
-    dilate_far_edge = cv2.dilate(uncleaned_far_edge.astype(np.uint8), kernel=np.array([[0,1,0],[1,1,1],[0,1,0]]).astype(np.uint8), iterations=1)
+    dilate_far_edge = cv2.dilate(uncleaned_far_edge.astype(np.uint8), kernel=np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]]).astype(np.uint8), iterations=1)
     near_edge[dilate_far_edge == 0] = 0
-    dilate_near_edge = cv2.dilate(near_edge.astype(np.uint8), kernel=np.array([[0,1,0],[1,1,1],[0,1,0]]).astype(np.uint8), iterations=1)
+    dilate_near_edge = cv2.dilate(near_edge.astype(np.uint8), kernel=np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]]).astype(np.uint8), iterations=1)
     far_edge[dilate_near_edge == 0] = 0
     init_far_edge = far_edge.copy()
     init_near_edge = near_edge.copy()
     for i in range(config['depth_edge_dilate_2']):
-        init_far_edge = cv2.dilate(init_far_edge, kernel=np.array([[0,1,0],[1,1,1],[0,1,0]]).astype(np.uint8), iterations=1)
+        init_far_edge = cv2.dilate(init_far_edge, kernel=np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]]).astype(np.uint8), iterations=1)
         init_far_edge[init_near_edge == 1] = 0
-        init_near_edge = cv2.dilate(init_near_edge, kernel=np.array([[0,1,0],[1,1,1],[0,1,0]]).astype(np.uint8), iterations=1)
+        init_near_edge = cv2.dilate(init_near_edge, kernel=np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]]).astype(np.uint8), iterations=1)
         init_near_edge[init_far_edge == 1] = 0
     init_far_edge[mask == 0] = 0
     init_near_edge[mask == 0] = 0
@@ -1275,15 +1310,20 @@ def refine_depth_around_edge(mask_depth, far_edge, uncleaned_far_edge, near_edge
         far_pxs, far_pys = np.where((hole_far_edge == 0) * (init_far_edge == 1) > 0)
         current_hole_far_edge = hole_far_edge.copy()
         for far_px, far_py in zip(far_pxs, far_pys):
-            min_px = max(far_px - 1, 0) 
+            min_px = max(far_px - 1, 0)
             max_px = min(far_px + 2, mask.shape[0]-1)
-            min_py = max(far_py - 1, 0) 
+            min_py = max(far_py - 1, 0)
             max_py = min(far_py + 2, mask.shape[1]-1)
             hole_far = current_hole_far_edge[min_px: max_px, min_py: max_py]
             tmp_mask = mask[min_px: max_px, min_py: max_py]
             all_depth_patch = all_depth[min_px: max_px, min_py: max_py] * 0
             all_depth_mask = (all_depth_patch != 0).astype(np.uint8)
-            cross_element = np.array([[0,1,0],[1,1,1],[0,1,0]])[min_px - (far_px - 1): max_px - (far_px - 1), min_py - (far_py - 1): max_py - (far_py - 1)]
+            cross_element = np.array(
+                [[0, 1, 0],
+                 [1, 1, 1],
+                 [0, 1, 0]])[
+                min_px - (far_px - 1): max_px - (far_px - 1),
+                min_py - (far_py - 1): max_py - (far_py - 1)]
             combine_mask = (tmp_mask + all_depth_mask).clip(0, 1) * hole_far * cross_element
             tmp_patch = combine_mask * (mask_depth[min_px: max_px, min_py: max_py] + all_depth_patch)
             number = np.count_nonzero(tmp_patch)
@@ -1294,27 +1334,26 @@ def refine_depth_around_edge(mask_depth, far_edge, uncleaned_far_edge, near_edge
         near_pxs, near_pys = np.where((hole_near_edge == 0) * (init_near_edge == 1) > 0)
         current_hole_near_edge = hole_near_edge.copy()
         for near_px, near_py in zip(near_pxs, near_pys):
-            min_px = max(near_px - 1, 0) 
+            min_px = max(near_px - 1, 0)
             max_px = min(near_px + 2, mask.shape[0]-1)
-            min_py = max(near_py - 1, 0) 
+            min_py = max(near_py - 1, 0)
             max_py = min(near_py + 2, mask.shape[1]-1)
             hole_near = current_hole_near_edge[min_px: max_px, min_py: max_py]
             tmp_mask = mask[min_px: max_px, min_py: max_py]
             all_depth_patch = all_depth[min_px: max_px, min_py: max_py] * 0
-            all_depth_mask = (all_depth_patch != 0).astype(np.uint8)            
-            cross_element = np.array([[0,1,0],[1,1,1],[0,1,0]])[min_px - near_px + 1:max_px - near_px + 1, min_py - near_py + 1:max_py - near_py + 1]
+            all_depth_mask = (all_depth_patch != 0).astype(np.uint8)
+            cross_element = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]])[min_px - near_px + 1:max_px - near_px + 1, min_py - near_py + 1:max_py - near_py + 1]
             combine_mask = (tmp_mask + all_depth_mask).clip(0, 1) * hole_near * cross_element
             tmp_patch = combine_mask * (mask_depth[min_px: max_px, min_py: max_py] + all_depth_patch)
             number = np.count_nonzero(tmp_patch)
-            if number > 0:                
+            if number > 0:
                 mask_depth[near_px, near_py] = np.sum(tmp_patch) / max(number, 1e-6)
                 hole_near_edge[near_px, near_py] = 1
                 change = True
         if change is False:
             break
-        
-    return mask_depth
 
+    return mask_depth
 
 
 def vis_depth_edge_connectivity(depth, config):
@@ -1337,11 +1376,11 @@ def vis_depth_edge_connectivity(depth, config):
     T_junction_maps = np.zeros_like(pos_over)
     for edge_id in range(1, edge_label.max() + 1):
         edge_map = (edge_label == edge_id).astype(np.uint8)
-        edge_map = np.pad(edge_map, pad_width=((1,1),(1,1)), mode='constant')
+        edge_map = np.pad(edge_map, pad_width=((1, 1), (1, 1)), mode='constant')
         four_direc = np.roll(edge_map, 1, 1) + np.roll(edge_map, -1, 1) + np.roll(edge_map, 1, 0) + np.roll(edge_map, -1, 0)
         eight_direc = np.roll(np.roll(edge_map, 1, 1), 1, 0) + np.roll(np.roll(edge_map, 1, 1), -1, 0) + \
-                      np.roll(np.roll(edge_map, -1, 1), 1, 0) + np.roll(np.roll(edge_map, -1, 1), -1, 0)
-        eight_direc = (eight_direc + four_direc)[1:-1,1:-1]
+            np.roll(np.roll(edge_map, -1, 1), 1, 0) + np.roll(np.roll(edge_map, -1, 1), -1, 0)
+        eight_direc = (eight_direc + four_direc)[1:-1, 1:-1]
         pos_over[eight_direc > 2] = 0
         T_junction_maps[eight_direc > 2] = 1
     _, edge_label = cv2.connectedComponents(pos_over.astype(np.uint8), connectivity=8)
@@ -1350,36 +1389,37 @@ def vis_depth_edge_connectivity(depth, config):
     return edge_label
 
 
-
 def max_size(mat, value=0):
-    if not (mat and mat[0]): return (0, 0)
+    if not (mat and mat[0]):
+        return (0, 0)
     it = iter(mat)
-    prev = [(el==value) for el in next(it)]
+    prev = [(el == value) for el in next(it)]
     max_size = max_rectangle_size(prev)
     for row in it:
         hist = [(1+h) if el == value else 0 for h, el in zip(prev, row)]
         max_size = max(max_size, max_rectangle_size(hist), key=get_area)
-        prev = hist                                               
+        prev = hist
     return max_size
+
 
 def max_rectangle_size(histogram):
     Info = namedtuple('Info', 'start height')
     stack = []
-    top = lambda: stack[-1]
-    max_size = (0, 0) # height, width of the largest rectangle
-    pos = 0 # current position in the histogram
+    def top(): return stack[-1]
+    max_size = (0, 0)  # height, width of the largest rectangle
+    pos = 0  # current position in the histogram
     for pos, height in enumerate(histogram):
-        start = pos # position where rectangle starts
+        start = pos  # position where rectangle starts
         while True:
             if not stack or height > top().height:
-                stack.append(Info(start, height)) # push
+                stack.append(Info(start, height))  # push
             if stack and height < top().height:
                 max_size = max(max_size, (top().height, (pos-top().start)),
                                key=get_area)
                 start, _ = stack.pop()
                 continue
-            break # height == top().height goes here
-                
+            break  # height == top().height goes here
+
     pos += 1
     for start, height in stack:
         max_size = max(max_size, (height, (pos-start)),
@@ -1387,8 +1427,10 @@ def max_rectangle_size(histogram):
 
     return max_size
 
+
 def get_area(size):
     return reduce(mul, size)
+
 
 def find_anchors(matrix):
     matrix = [[*x] for x in matrix]
@@ -1400,17 +1442,18 @@ def find_anchors(matrix):
             if matrix[i:i + mh, j:j + mw].max() == 0:
                 return i, i + mh, j, j + mw
 
+
 def find_largest_rect(dst_img, bg_color=(128, 128, 128)):
-    valid = np.any(dst_img[..., :3] != bg_color, axis=-1) 
+    valid = np.any(dst_img[..., :3] != bg_color, axis=-1)
     dst_h, dst_w = dst_img.shape[:2]
-    ret, labels = cv2.connectedComponents(np.uint8(valid == False)) 
-    red_mat = np.zeros_like(labels) 
-    # denoise 
-    for i in range(1, np.max(labels)+1, 1): 
-        x, y, w, h = cv2.boundingRect(np.uint8(labels==i)) 
-        if x == 0 or (x+w) == dst_h or y == 0 or (y+h) == dst_w: 
-            red_mat[labels==i] = 1 
-    # crop 
-    t, b, l, r = find_anchors(red_mat) 
+    ret, labels = cv2.connectedComponents(np.uint8(valid == False))
+    red_mat = np.zeros_like(labels)
+    # denoise
+    for i in range(1, np.max(labels)+1, 1):
+        x, y, w, h = cv2.boundingRect(np.uint8(labels == i))
+        if x == 0 or (x+w) == dst_h or y == 0 or (y+h) == dst_w:
+            red_mat[labels == i] = 1
+    # crop
+    t, b, l, r = find_anchors(red_mat)
 
     return t, b, l, r
