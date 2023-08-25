@@ -35,7 +35,7 @@ os.makedirs(config['mesh_folder'], exist_ok=True)
 os.makedirs(config['video_folder'], exist_ok=True)
 os.makedirs(config['depth_folder'], exist_ok=True)
 
-sample_list = get_MiDaS_samples(config['src_folder'], config['depth_folder'], config, config['specific'])
+
 normal_canvas, all_canvas = None, None
 
 if isinstance(config["gpu_ids"], int) and (config["gpu_ids"] >= 0):
@@ -45,10 +45,10 @@ else:
 
 print(f"running on device {device}")
 
-localPaths = []
-
 
 def generateVideo(normal_canvas=None, all_canvas=None):
+    sample_list = get_MiDaS_samples(config['src_folder'], config['depth_folder'], config, config['specific'])
+    localPaths = []
     for idx in tqdm(range(len(sample_list))):
         depth = None
         sample = sample_list[idx]
