@@ -1,7 +1,7 @@
 depth_edge_model_ckpt: photo_inpainting/checkpoints/edge-model.pth
 depth_feat_model_ckpt: photo_inpainting/checkpoints/depth-model.pth
 rgb_feat_model_ckpt: photo_inpainting/checkpoints/color-model.pth
-MiDaS_model_ckpt: photo_inpainting/BoostingMonocularDepth/midas/model-f46da743.pt
+MiDaS_model_ckpt: photo_inpainting/MiDaS/model.pt
 use_boostmonodepth: True
 fps: 24
 num_frames: 72
