@@ -28,7 +28,7 @@ parser.add_argument('--config', type=str, default='photo_inpainting/argument.yml
 args = parser.parse_args()
 config = yaml.full_load(open(args.config, 'r'))
 if config['offscreen_rendering'] is True:
-    vispy.use(app='egl')
+    vispy.use(app='PyQt5')
 
 os.makedirs(config['src_folder'], exist_ok=True)
 os.makedirs(config['mesh_folder'], exist_ok=True)
