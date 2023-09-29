@@ -11,7 +11,7 @@ z_shift_range: [-0.05]
 traj_types: [double-straight-line]
 video_postfix: [zoom-in]
 specific: ''
-longer_side_len: 960
+longer_side_len: 1024
 src_folder: photo_inpainting/image
 depth_folder: photo_inpainting/depth
 mesh_folder: photo_inpainting/mesh
